@@ -1,141 +1,99 @@
-document.addEventListener('DOMContentLoaded', function() {
-  const addDomainButton = document.getElementById('addDomain');
-  const companyNameInput = document.getElementById('companyName');
-  const emailDomainInput = document.getElementById('emailDomain');
-  const statusDiv = document.getElementById('status');
-  const domainListDiv = document.getElementById('domainList');
-  
-  // 保存されたドメイン情報を読み込む
-  loadDomains();
-  
-  // ドメイン追加ボタンのクリックイベント
-  addDomainButton.addEventListener('click', function() {
-    const companyName = companyNameInput.value.trim();
-    const emailDomain = emailDomainInput.value.trim().replace(/^@/, ''); // 先頭の@を削除
-    
-    if (companyName === '' || emailDomain === '') {
-      showStatus('会社名とメールドメインを入力してください', 'error');
-      return;
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Gmail Folder Organizer</title>
+  <style>
+    body {
+      width: 300px;
+      font-family: Arial, sans-serif;
+      padding: 10px;
     }
-    
-    // ドメインのバリデーション
-    if (!isValidDomain(emailDomain)) {
-      showStatus('有効なドメイン形式を入力してください', 'error');
-      return;
+    .form-group {
+      margin-bottom: 10px;
     }
-    
-    // ドメイン情報を保存
-    saveDomain(companyName, emailDomain);
-  });
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    input {
+      width: 100%;
+      padding: 5px;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 5px 10px;
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #3367d6;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 5px;
+      border-radius: 3px;
+      display: none;
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    .domain-list {
+      margin-top: 20px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .domain-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+    }
+    .domain-name {
+      font-weight: bold;
+    }
+    .domain-email {
+      color: #666;
+      font-size: 0.9em;
+    }
+    .remove-btn {
+      background-color: #dc3545;
+      padding: 3px 8px;
+      font-size: 0.8em;
+    }
+    .remove-btn:hover {
+      background-color: #c82333;
+    }
+  </style>
+</head>
+<body>
+  <h2>Gmail Folder Organizer</h2>
   
-  // ドメイン情報を保存する関数
-  function saveDomain(companyName, emailDomain) {
-    chrome.storage.sync.get({domains: []}, function(data) {
-      // すでに同じドメインが登録されていないかチェック
-      const domainExists = data.domains.some(domain => domain.email === emailDomain);
-      
-      if (domainExists) {
-        showStatus('このドメインは既に登録されています', 'error');
-        return;
-      }
-      
-      // 新しいドメインを追加
-      const newDomains = [...data.domains, {company: companyName, email: emailDomain}];
-      
-      chrome.storage.sync.set({domains: newDomains}, function() {
-        showStatus('ドメインを登録しました', 'success');
-        loadDomains(); // ドメイン一覧を更新
-        
-        // 入力フィールドをクリア
-        companyNameInput.value = '';
-        emailDomainInput.value = '';
-        
-        // バックグラウンドスクリプトにメッセージを送信
-        chrome.runtime.sendMessage({
-          action: 'sendToGmail',
-          companyName: companyName,
-          emailDomain: emailDomain
-        }, function(response) {
-          if (response && !response.success) {
-            showStatus(response.message || 'Gmailが開かれていません', 'error');
-          }
-        });
-      });
-    });
-  }
+  <div class="form-group">
+    <label for="companyName">会社名 (ラベル名)</label>
+    <input type="text" id="companyName" placeholder="例: 株式会社サンプル">
+  </div>
   
-  // 保存されたドメイン情報を読み込む関数
-  function loadDomains() {
-    chrome.storage.sync.get({domains: []}, function(data) {
-      domainListDiv.innerHTML = '';
-      
-      if (data.domains.length === 0) {
-        domainListDiv.innerHTML = '<p>登録されたドメインはありません</p>';
-        return;
-      }
-      
-      data.domains.forEach(function(domain, index) {
-        const domainItem = document.createElement('div');
-        domainItem.className = 'domain-item';
-        
-        const domainInfo = document.createElement('div');
-        
-        const domainName = document.createElement('div');
-        domainName.className = 'domain-name';
-        domainName.textContent = domain.company;
-        
-        const domainEmail = document.createElement('div');
-        domainEmail.className = 'domain-email';
-        domainEmail.textContent = domain.email;
-        
-        domainInfo.appendChild(domainName);
-        domainInfo.appendChild(domainEmail);
-        
-        const removeButton = document.createElement('button');
-        removeButton.className = 'remove-btn';
-        removeButton.textContent = '削除';
-        removeButton.dataset.index = index;
-        removeButton.addEventListener('click', function() {
-          removeDomain(index);
-        });
-        
-        domainItem.appendChild(domainInfo);
-        domainItem.appendChild(removeButton);
-        
-        domainListDiv.appendChild(domainItem);
-      });
-    });
-  }
+  <div class="form-group">
+    <label for="emailDomain">メールドメイン</label>
+    <input type="text" id="emailDomain" placeholder="例: example.com">
+  </div>
   
-  // ドメインを削除する関数
-  function removeDomain(index) {
-    chrome.storage.sync.get({domains: []}, function(data) {
-      const removedDomain = data.domains[index];
-      const newDomains = data.domains.filter((_, i) => i !== index);
-      
-      chrome.storage.sync.set({domains: newDomains}, function() {
-        showStatus(`${removedDomain.company} (${removedDomain.email}) を削除しました`, 'success');
-        loadDomains(); // ドメイン一覧を更新
-      });
-    });
-  }
+  <button id="addDomain">追加</button>
   
-  // ステータスメッセージを表示する関数
-  function showStatus(message, type) {
-    statusDiv.textContent = message;
-    statusDiv.className = `status ${type}`;
-    statusDiv.style.display = 'block';
-    
-    setTimeout(function() {
-      statusDiv.style.display = 'none';
-    }, 3000);
-  }
+  <div id="status" class="status"></div>
   
-  // ドメインのバリデーション
-  function isValidDomain(domain) {
-    // @を先頭から除去（ユーザーが@example.comのように入力した場合に対応）
-    domain = domain.replace(/^@/, '');
-    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/;
-    return domainRegex.test(domain);
-  }
-});
+  <div class="domain-list" id="domainList"></div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
