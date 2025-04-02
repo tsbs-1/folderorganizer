@@ -24,25 +24,38 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    // ドメイン情報を保存
-    saveDomain(companyName, emailDomain);
-    
-    // 入力フィールドをクリア
-    companyNameInput.value = '';
-    emailDomainInput.value = '';
-    
-    // バックグラウンドスクリプトにメッセージを送信
-    chrome.runtime.sendMessage({
-      action: 'sendToGmail',
-      companyName: companyName,
-      emailDomain: emailDomain
-    }, function(response) {
-      if (response && response.success) {
-        showStatus('ラベルとフィルタを作成しました', 'success');
-      } else {
-        const errorMsg = response ? response.message : 'ラベル作成に失敗しました';
-        showStatus(errorMsg, 'error');
+    // Gmailタブが開いているか確認
+    chrome.tabs.query({url: 'https://mail.google.com/*'}, function(tabs) {
+      if (tabs.length === 0) {
+        showStatus('Gmailが開かれていません。Gmailを開いた状態で再度お試しください。', 'error');
+        return;
       }
+      
+      // ドメイン情報を保存
+      saveDomain(companyName, emailDomain);
+      
+      // バックグラウンドスクリプトにメッセージを送信
+      chrome.runtime.sendMessage({
+        action: 'sendToGmail',
+        companyName: companyName,
+        emailDomain: emailDomain
+      }, function(response) {
+        if (chrome.runtime.lastError) {
+          console.error('通信エラー:', chrome.runtime.lastError);
+          showStatus('通信エラーが発生しました。拡張機能を再読み込みしてください。', 'error');
+          return;
+        }
+        
+        if (response && response.success) {
+          showStatus('ラベルとフィルタを作成しました', 'success');
+          // 成功したら入力フィールドをクリア
+          companyNameInput.value = '';
+          emailDomainInput.value = '';
+        } else {
+          const errorMsg = response ? response.message : 'ラベル作成に失敗しました';
+          showStatus(errorMsg, 'error');
+        }
+      });
     });
   });
   
@@ -128,6 +141,10 @@ document.addEventListener('DOMContentLoaded', function() {
           subAction: 'removeLabel'
         }, function(response) {
           // 削除のレスポンスは無視してもOK
+          if (chrome.runtime.lastError) {
+            console.error('削除通信エラー:', chrome.runtime.lastError);
+            // ここではユーザーに表示せず、サイレントに失敗を許容
+          }
         });
       });
     });
