@@ -537,58 +537,157 @@
     });
   }
   
-  // フィルタ作成ボタンを探す関数
-  function findCreateFilterButton() {
-    debugLog('フィルタ作成ボタンを探しています...');
-    
+// フィルタ作成ボタンを探す関数
+function findCreateFilterButton() {
+  debugLog('フィルタ作成ボタンを探しています...');
+  
+  return new Promise(resolve => {
     try {
-      // 方法1: 設定メニューを探す
-      const settingsMenu = document.querySelector('div[aria-label="設定"]') || 
-                           document.querySelector('div[aria-label="Settings"]') ||
-                           document.querySelector('div[aria-label*="ettings"]');
+      // 現在のURLを確認
+      const currentUrl = window.location.href;
+      const isInboxPage = currentUrl.includes('#inbox') || !currentUrl.includes('#settings');
+      const isFilterPage = currentUrl.includes('#settings/filters');
       
-      if (settingsMenu) {
-        debugLog('設定メニューを見つけました');
-        // 設定メニューをクリック
-        settingsMenu.click();
-        
-        // メニューが開くのを少し待つ
-        return new Promise(resolve => {
-          setTimeout(() => {
-            // フィルタ設定のメニュー項目を探す
-            const menuItems = [...document.querySelectorAll('div[role="menuitem"]')];
-            debugLog('メニュー項目数:', menuItems.length);
-            
-            const filterOption = menuItems.find(item => 
-              item.textContent.includes('フィルタと受信拒否設定') || 
-              item.textContent.includes('Filters and Blocked Addresses') ||
-              item.textContent.includes('Filter')
-            );
-            
-            debugLog('フィルタオプション検索結果:', filterOption);
-            
-            if (filterOption) {
-              resolve(filterOption);
-            } else {
-              // 設定メニューを閉じる
-              document.body.click();
-              // 従来の方法を試す
-              const filterButtons = fallbackFindFilterButtons();
-              resolve(filterButtons[0] || null);
-            }
-          }, 500);
-        });
-      } else {
-        debugLog('設定メニューが見つかりませんでした、従来の方法を試します');
-        // 従来の方法を試す
-        const filterButtons = fallbackFindFilterButtons();
-        return filterButtons[0] || null;
+      debugLog('現在の状態: インボックスページ=', isInboxPage, '、フィルタページ=', isFilterPage);
+      
+      // フィルタ設定ページにいる場合
+      if (isFilterPage) {
+        findCreateFilterButtonInSettingsPage(resolve);
+        return;
       }
+      
+      // インボックスにいる場合は設定に移動
+      if (isInboxPage) {
+        debugLog('インボックスページから設定ページに移動します');
+        // フィルタ設定ページに直接移動
+        window.location.href = 'https://mail.google.com/mail/u/0/#settings/filters';
+        
+        // 画面遷移を待ってから再実行
+        setTimeout(() => {
+          // 遷移が完了したか確認
+          if (window.location.href.includes('#settings/filters')) {
+            debugLog('フィルタ設定ページへの遷移が完了しました');
+            findCreateFilterButtonInSettingsPage(resolve);
+          } else {
+            debugLog('フィルタ設定ページへの遷移が完了していません、設定メニュー経由で試みます');
+            findFilterViaSettingsMenu(resolve);
+          }
+        }, 3000); // ページ遷移に十分な時間を取る
+        return;
+      }
+      
+      // その他の場合は設定メニューを探す
+      findFilterViaSettingsMenu(resolve);
     } catch (error) {
       console.error('フィルタボタン検索エラー:', error);
-      return null;
+      resolve(null);
     }
+  });
+}
+
+// フィルタ設定ページ内でボタンを探す補助関数
+function findCreateFilterButtonInSettingsPage(resolveCallback) {
+  debugLog('フィルタ設定ページ内でボタンを探しています');
+  
+  // 「新しいフィルタを作成」リンクを探す - 様々なセレクタを試す
+  setTimeout(() => {
+    // リンク、ボタン、span要素など幅広く検索
+    const filterButtons = [
+      ...document.querySelectorAll('a[href*="filter"]'),
+      ...document.querySelectorAll('button'),
+      ...document.querySelectorAll('span'),
+      ...document.querySelectorAll('div[role="button"]')
+    ];
+    
+    // テキストで選別
+    const createFilterBtn = filterButtons.find(el => {
+      const text = el.textContent.trim();
+      return text === '新しいフィルタを作成' || 
+             text === 'Create new filter' || 
+             text.includes('新しいフィルタ') ||
+             text.includes('Create filter') ||
+             text.includes('new filter');
+    });
+    
+    debugLog('フィルタ設定ページでのボタン検索結果:', createFilterBtn);
+    
+    if (createFilterBtn) {
+      resolveCallback(createFilterBtn);
+    } else {
+      // 最後の手段: 任意の要素から探す
+      const anyElement = [...document.querySelectorAll('*')].find(el => {
+        const text = el.textContent.trim();
+        return (text === '新しいフィルタを作成' || 
+                text === 'Create new filter' ||
+                text.includes('新しいフィルタ') ||
+                text.includes('Create filter')) && 
+              (el.onclick || el.tagName === 'A' || el.tagName === 'BUTTON' || 
+               el.role === 'button' || el.style.cursor === 'pointer');
+      });
+      
+      debugLog('最後の手段での検索結果:', anyElement);
+      resolveCallback(anyElement || null);
+    }
+  }, 1000); // DOM要素の読み込みを待つ
+}
+
+// 設定メニュー経由でフィルタページに移動する補助関数
+function findFilterViaSettingsMenu(resolveCallback) {
+  debugLog('設定メニュー経由でフィルタ設定を探しています');
+  
+  // 設定メニューを探す
+  const settingsMenu = document.querySelector('div[aria-label="設定"]') || 
+                       document.querySelector('div[aria-label="Settings"]') ||
+                       document.querySelector('div[aria-label*="ettings"]');
+  
+  if (settingsMenu) {
+    debugLog('設定メニューを見つけました、クリックします');
+    // 設定メニューをクリック
+    settingsMenu.click();
+    
+    // メニューが開くのを待つ
+    setTimeout(() => {
+      // フィルタ設定のメニュー項目を探す
+      const menuItems = [...document.querySelectorAll('div[role="menuitem"]')];
+      debugLog('メニュー項目数:', menuItems.length);
+      
+      const filterOption = menuItems.find(item => 
+        item.textContent.includes('フィルタと受信拒否設定') || 
+        item.textContent.includes('Filters and Blocked Addresses') ||
+        item.textContent.includes('フィルタ') ||
+        item.textContent.includes('Filter')
+      );
+      
+      debugLog('フィルタオプション検索結果:', filterOption);
+      
+      if (filterOption) {
+        // オプションをクリックして設定ページに移動
+        filterOption.click();
+        
+        // 画面遷移を待つ
+        setTimeout(() => {
+          findCreateFilterButtonInSettingsPage(resolveCallback);
+        }, 2000);
+      } else {
+        // メニュー項目が見つからない場合は直接URLで移動
+        document.body.click(); // メニューを閉じる
+        window.location.href = 'https://mail.google.com/mail/u/0/#settings/filters';
+        
+        setTimeout(() => {
+          findCreateFilterButtonInSettingsPage(resolveCallback);
+        }, 3000);
+      }
+    }, 1000);
+  } else {
+    // 設定メニューが見つからない場合は直接URLで移動
+    debugLog('設定メニューが見つかりませんでした、直接URLで移動します');
+    window.location.href = 'https://mail.google.com/mail/u/0/#settings/filters';
+    
+    setTimeout(() => {
+      findCreateFilterButtonInSettingsPage(resolveCallback);
+    }, 3000);
   }
+}
   
   // フィルタボタンを探す従来の方法
   function fallbackFindFilterButtons() {
