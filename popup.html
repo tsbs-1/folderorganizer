@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Gmail Folder Organizer</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      width: 320px;
+      padding: 15px;
+    }
+    h1 {
+      font-size: 18px;
+      color: #4285f4;
+      margin-bottom: 15px;
+    }
+    .form-group {
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #4285f4;
+      color: white;
+      padding: 8px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button:hover {
+      background-color: #3367d6;
+    }
+    .domain-list {
+      margin-top: 15px;
+    }
+    .domain-item {
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .domain-name {
+      font-weight: 500;
+    }
+    .domain-email {
+      color: #666;
+      font-size: 0.9em;
+    }
+    .remove-btn {
+      background-color: #ea4335;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 2px 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .success {
+      background-color: #e6f4ea;
+      color: #137333;
+    }
+    .error {
+      background-color: #fce8e6;
+      color: #c5221f;
+    }
+  </style>
+</head>
+<body>
+  <h1>Gmail Folder Organizer</h1>
+  
+  <div class="form-group">
+    <label for="companyName">会社名:</label>
+    <input type="text" id="companyName" placeholder="例: 株式会社サンプル">
+  </div>
+  
+  <div class="form-group">
+    <label for="emailDomain">メールドメイン:</label>
+    <input type="text" id="emailDomain" placeholder="例: sample.co.jp">
+  </div>
+  
+  <button id="addDomain">追加</button>
+  
+  <div id="status" class="status" style="display: none;"></div>
+  
+  <div class="domain-list">
+    <h2 style="font-size: 16px; margin-top: 20px;">登録済みドメイン</h2>
+    <div id="domainList"></div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

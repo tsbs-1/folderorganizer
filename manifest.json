@@ -1,0 +1,9 @@
+{
+    "manifest_version": 3,
+    "name": "Gmail Folder Organizer",
+    "version": "1.0",
+    "description": "Gmail Organizer",
+    "action": {
+      "default_popup": "popup.html"
+    }
+  }
