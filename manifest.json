@@ -1,0 +1,26 @@
+{
+    "manifest_version": 3,
+    "name": "Gmail Folder Organizer",
+    "version": "1.0",
+    "description": "Gmail Organizer",
+    "action": {
+      "default_popup": "popup.html"
+    },
+    "permissions": [
+      "storage",
+      "tabs",
+      "scripting"
+    ],
+    "host_permissions": [
+      "https://mail.google.com/*"
+    ],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "content_scripts": [
+      {
+        "matches": ["https://mail.google.com/*"],
+        "js": ["content.js"]
+      }
+    ]
+  }
