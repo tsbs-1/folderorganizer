@@ -45,6 +45,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Gmailタブが開いているか確認
     chrome.tabs.query({url: 'https://mail.google.com/*'}, function(tabs) {
+      if (chrome.runtime.lastError) {
+        debugLog('タブ検索エラー:', chrome.runtime.lastError);
+        showStatus('タブ検索に失敗しました。', 'error');
+        return;
+      }
+      
       if (tabs.length === 0) {
         showStatus('Gmailが開かれていません。Gmailを開いた状態で再度お試しください。', 'error');
         return;
@@ -68,13 +74,15 @@ document.addEventListener('DOMContentLoaded', function() {
             companyName: companyName,
             emailDomain: emailDomain
           }, function(response) {
-            debugLog('バックグラウンドからのレスポンス:', response);
-            
+            // エラーチェックを先に行う
             if (chrome.runtime.lastError) {
-              console.error('通信エラー:', chrome.runtime.lastError);
-              showStatus('通信エラーが発生しました: ' + chrome.runtime.lastError.message, 'error');
+              const errorMsg = chrome.runtime.lastError.message || '不明なエラー';
+              console.error('通信エラー:', errorMsg);
+              showStatus('通信エラーが発生しました: ' + errorMsg, 'error');
               return;
             }
+            
+            debugLog('バックグラウンドからのレスポンス:', response);
             
             if (response && response.success) {
               showStatus('ラベルとフィルタを作成しました', 'success');
@@ -101,16 +109,29 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       // バックグラウンドとの通信をテスト
       chrome.runtime.sendMessage({action: 'ping'}, function(response) {
+        // エラーチェックを先に行う
         if (chrome.runtime.lastError) {
-          console.warn('バックグラウンドとの通信テストに失敗しました:', chrome.runtime.lastError);
-          showStatus('拡張機能の状態が不安定です。ブラウザを再起動してください。', 'error', 5000);
+          const errorMsg = chrome.runtime.lastError.message || '不明なエラー';
+          console.warn('バックグラウンドとの通信テストに失敗しました:', errorMsg);
+          // ここでは警告だけ表示し、致命的なエラーとしては扱わない
+          debugLog('バックグラウンドとの通信テストに失敗しましたが、処理を続行します');
+          return;
+        }
+        
+        if (response && response.success) {
+          debugLog('バックグラウンドとの通信テスト成功:', response);
         } else {
-          debugLog('バックグラウンドとの通信テスト成功');
+          debugLog('バックグラウンドからの応答が無効です:', response);
         }
       });
       
       // Gmailタブの存在を確認
       chrome.tabs.query({url: 'https://mail.google.com/*'}, function(tabs) {
+        if (chrome.runtime.lastError) {
+          debugLog('タブ検索エラー:', chrome.runtime.lastError);
+          return;
+        }
+        
         if (tabs.length === 0) {
           showStatus('Gmailが開かれていません。別のタブでGmailを開いてください。', 'warning', 5000);
         } else {
@@ -119,6 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     } catch (e) {
       console.error('拡張機能状態チェックエラー:', e);
+      // エラーを表示せず、サイレントに続行
     }
   }
   
@@ -127,6 +149,14 @@ document.addEventListener('DOMContentLoaded', function() {
     debugLog('ドメイン情報を保存します:', companyName, emailDomain);
     
     chrome.storage.sync.get({domains: []}, function(data) {
+      if (chrome.runtime.lastError) {
+        const errorMsg = chrome.runtime.lastError.message || '不明なエラー';
+        console.error('ドメイン情報の取得エラー:', errorMsg);
+        showStatus('ドメイン情報の取得に失敗しました: ' + errorMsg, 'error');
+        if (callback) callback(false);
+        return;
+      }
+      
       // すでに同じドメインが登録されていないかチェック
       const domainExists = data.domains.some(domain => domain.email === emailDomain);
       
@@ -141,8 +171,9 @@ document.addEventListener('DOMContentLoaded', function() {
       
       chrome.storage.sync.set({domains: newDomains}, function() {
         if (chrome.runtime.lastError) {
-          console.error('ドメイン保存エラー:', chrome.runtime.lastError);
-          showStatus('ドメイン情報の保存に失敗しました: ' + chrome.runtime.lastError.message, 'error');
+          const errorMsg = chrome.runtime.lastError.message || '不明なエラー';
+          console.error('ドメイン保存エラー:', errorMsg);
+          showStatus('ドメイン情報の保存に失敗しました: ' + errorMsg, 'error');
           if (callback) callback(false);
           return;
         }
@@ -161,7 +192,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     chrome.storage.sync.get({domains: []}, function(data) {
       if (chrome.runtime.lastError) {
-        console.error('ドメイン読み込みエラー:', chrome.runtime.lastError);
+        const errorMsg = chrome.runtime.lastError.message || '不明なエラー';
+        console.error('ドメイン読み込みエラー:', errorMsg);
         domainListDiv.innerHTML = '<p>ドメイン情報の読み込みに失敗しました</p>';
         return;
       }
@@ -214,8 +246,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     chrome.storage.sync.get({domains: []}, function(data) {
       if (chrome.runtime.lastError) {
-        console.error('ドメイン読み込みエラー:', chrome.runtime.lastError);
-        showStatus('ドメイン情報の読み込みに失敗しました', 'error');
+        const errorMsg = chrome.runtime.lastError.message || '不明なエラー';
+        console.error('ドメイン読み込みエラー:', errorMsg);
+        showStatus('ドメイン情報の読み込みに失敗しました: ' + errorMsg, 'error');
         return;
       }
       
@@ -229,8 +262,9 @@ document.addEventListener('DOMContentLoaded', function() {
       
       chrome.storage.sync.set({domains: newDomains}, function() {
         if (chrome.runtime.lastError) {
-          console.error('ドメイン削除エラー:', chrome.runtime.lastError);
-          showStatus('ドメイン情報の削除に失敗しました', 'error');
+          const errorMsg = chrome.runtime.lastError.message || '不明なエラー';
+          console.error('ドメイン削除エラー:', errorMsg);
+          showStatus('ドメイン情報の削除に失敗しました: ' + errorMsg, 'error');
           return;
         }
         
@@ -248,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }, function(response) {
             // 削除のレスポンスは無視してもOK
             if (chrome.runtime.lastError) {
-              console.error('削除通信エラー:', chrome.runtime.lastError);
+              debugLog('削除通信エラー:', chrome.runtime.lastError);
               // ここではユーザーに表示せず、サイレントに失敗を許容
             }
           });

@@ -2,6 +2,13 @@
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   console.log('バックグラウンドスクリプトでメッセージを受信:', request);
   
+  // ping要求に応答
+  if (request.action === 'ping') {
+    console.log('ping要求を受信しました');
+    sendResponse({success: true, message: 'pong'});
+    return true;
+  }
+  
   if (request.action === 'sendToGmail') {
     // Gmailタブを検索
     chrome.tabs.query({url: 'https://mail.google.com/*'}, function(tabs) {
