@@ -116,10 +116,41 @@
             // 少し待ってからラベル名を入力
             setTimeout(function() {
               try {
-                const labelNameInput = document.querySelector('input[placeholder="ラベル名を入力"]') || 
-                                      document.querySelector('input[placeholder="Enter new label name"]') ||
-                                      document.querySelector('input[placeholder*="label"]') ||
-                                      document.querySelector('input[name="name"]'); // 設定ページの場合
+                  // 多様なセレクタを試す
+                  let labelNameInput = document.querySelector('input[placeholder="ラベル名を入力"]') || 
+                                        document.querySelector('input[placeholder="Enter new label name"]') ||
+                                        document.querySelector('input[placeholder*="label"]') ||
+                                        document.querySelector('input[name="name"]'); // 設定ページの場合
+
+                  // 上記のセレクタで見つからない場合、より広い範囲で検索
+                  if (!labelNameInput) {
+                    debugLog('標準のセレクタでフィールドが見つかりませんでした。代替の方法を試します');
+                    
+                    // 新しいラベルダイアログに表示されるすべての入力フィールドを取得
+                    const allInputs = document.querySelectorAll('input[type="text"]');
+                    debugLog('テキスト入力フィールド数:', allInputs.length);
+                    
+                    // 「新しいラベル」ダイアログ内の最初の入力フィールドを探す
+                    const labelDialog = [...document.querySelectorAll('div[role="dialog"]')].find(dialog => 
+                      dialog.textContent.includes('新しいラベル') || 
+                      dialog.textContent.includes('New label')
+                    );
+                    
+                    if (labelDialog) {
+                      debugLog('ラベルダイアログを見つけました');
+                      const dialogInputs = labelDialog.querySelectorAll('input');
+                      if (dialogInputs.length > 0) {
+                        labelNameInput = dialogInputs[0]; // 最初の入力フィールドを使用
+                        debugLog('ダイアログ内の入力フィールドを見つけました:', labelNameInput);
+                      }
+                    } else {
+                      // ダイアログが見つからない場合、ページ内の最初のテキスト入力を試す（最後の手段）
+                      if (allInputs.length > 0) {
+                        labelNameInput = allInputs[0];
+                        debugLog('フォールバック: 最初のテキスト入力を使用します:', labelNameInput);
+                      }
+                    }
+                  }
                 
                 debugLog('ラベル名入力フィールド:', labelNameInput);
                 
@@ -134,12 +165,39 @@
                   
                   // 作成ボタンをクリック
                   setTimeout(function() {
-                    // 設定ページ用と通常のGmail UI用のボタン検索
-                    const createButton = [...document.querySelectorAll('button, div[role="button"]')].find(button => 
+                    // 設定ページ用と通常のGmail UI用のボタン検索（より広範囲に）
+                    let createButton = [...document.querySelectorAll('button, div[role="button"]')].find(button => 
                       button.textContent.includes('作成') || 
                       button.textContent.includes('Create') ||
                       (isInSettingsPage && (button.textContent === '作成' || button.textContent === 'Create'))
                     );
+
+                    // ボタンが見つからない場合、ダイアログ内でより直接的に検索
+                    if (!createButton) {
+                      debugLog('標準の方法で作成ボタンが見つかりませんでした。代替の方法を試します');
+                      
+                      // ダイアログ内の全てのボタンを取得
+                      const labelDialog = [...document.querySelectorAll('div[role="dialog"]')].find(dialog => 
+                        dialog.textContent.includes('新しいラベル') || 
+                        dialog.textContent.includes('New label')
+                      );
+                      
+                      if (labelDialog) {
+                        // ダイアログ内のボタンを探す（最後のボタンが通常「作成」）
+                        const dialogButtons = [...labelDialog.querySelectorAll('button')];
+                        debugLog('ダイアログ内のボタン数:', dialogButtons.length);
+                        
+                        if (dialogButtons.length > 0) {
+                          // 「作成」ボタンを探す、または最後のボタンを使用
+                          createButton = dialogButtons.find(btn => 
+                            btn.textContent === '作成' || 
+                            btn.textContent === 'Create'
+                          ) || dialogButtons[dialogButtons.length - 1];
+                          
+                          debugLog('ダイアログ内の作成ボタン:', createButton);
+                        }
+                      }
+                    }
                     
                     debugLog('ラベル作成確定ボタン:', createButton);
                     
