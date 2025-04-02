@@ -32,9 +32,13 @@
     button:hover {
       background-color: #3367d6;
     }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
     .status {
       margin-top: 10px;
-      padding: 5px;
+      padding: 8px;
       border-radius: 3px;
       display: none;
     }
@@ -46,17 +50,46 @@
       background-color: #f8d7da;
       color: #721c24;
     }
+    .warning {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+    .processing {
+      background-color: #e2e3e5;
+      color: #383d41;
+      display: flex;
+      align-items: center;
+    }
+    .processing::after {
+      content: "";
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-left: 10px;
+      border: 2px solid #383d41;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
     .domain-list {
       margin-top: 20px;
       max-height: 200px;
       overflow-y: auto;
+      border: 1px solid #eee;
+      border-radius: 3px;
     }
     .domain-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 5px;
+      padding: 8px;
       border-bottom: 1px solid #eee;
+    }
+    .domain-item:last-child {
+      border-bottom: none;
     }
     .domain-name {
       font-weight: bold;
@@ -73,10 +106,22 @@
     .remove-btn:hover {
       background-color: #c82333;
     }
+    .instructions {
+      margin-top: 10px;
+      padding: 8px;
+      background-color: #e9ecef;
+      border-radius: 3px;
+      font-size: 0.9em;
+      color: #495057;
+    }
   </style>
 </head>
 <body>
   <h2>Gmail Folder Organizer</h2>
+  
+  <div class="instructions">
+    <p>Gmailを開いた状態で会社名とメールドメインを入力してください。自動的にラベルとフィルタが作成されます。</p>
+  </div>
   
   <div class="form-group">
     <label for="companyName">会社名 (ラベル名)</label>
@@ -92,6 +137,7 @@
   
   <div id="status" class="status"></div>
   
+  <h3>登録済みドメイン</h3>
   <div class="domain-list" id="domainList"></div>
   
   <script src="popup.js"></script>
