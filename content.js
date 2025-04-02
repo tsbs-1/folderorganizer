@@ -4,9 +4,14 @@
     console.log('Gmailでメッセージを受信:', request);
     
     if (request.action === 'createLabel') {
-      createGmailLabel(request.companyName, request.emailDomain);
-      createGmailFilter(request.companyName, request.emailDomain);
-      if (sendResponse) sendResponse({success: true});
+      try {
+        createGmailLabel(request.companyName, request.emailDomain);
+        createGmailFilter(request.companyName, request.emailDomain);
+        if (sendResponse) sendResponse({success: true});
+      } catch (error) {
+        console.error('ラベル作成エラー:', error);
+        if (sendResponse) sendResponse({success: false, message: error.message || 'ラベル作成中にエラーが発生しました'});
+      }
     } else if (request.action === 'removeLabel') {
       // ラベル削除機能
       // 注: 現在は実装されていません
@@ -53,6 +58,7 @@
       }, 1000);
     } else {
       console.warn('ラベル作成ボタンが見つかりませんでした');
+      throw new Error('Gmailのラベル作成ボタンが見つかりません。Gmailの画面を開いてください。');
     }
   }
   
@@ -166,6 +172,9 @@
   // 初期化関数
   function initialize() {
     console.log('Gmail Folder Organizer のコンテンツスクリプトが初期化されました');
+    
+    // バックグラウンドスクリプトとの接続を確立
+    chrome.runtime.connect({ name: "gmail-content" });
   }
   
   // DOMが読み込まれたら初期化
