@@ -96,60 +96,96 @@
       debugLog('Gmail UIが読み込まれました。ラベル作成を続行します');
       
       try {
-        // ラベル作成用のボタンを探す
-        const createLabelButton = findCreateLabelButton();
+        // 現在のURLをチェック
+        const isInSettingsPage = window.location.href.includes('/settings/') || 
+                                window.location.href.includes('#settings') ||
+                                window.location.href.includes('#label');
         
-        if (createLabelButton) {
-          debugLog('ラベル作成ボタンを見つけました:', createLabelButton);
-          // ラベル作成ボタンをクリック
-          createLabelButton.click();
-          
-          // 少し待ってからラベル名を入力
-          setTimeout(function() {
-            try {
-              const labelNameInput = document.querySelector('input[placeholder="ラベル名を入力"]') || 
-                                    document.querySelector('input[placeholder="Enter new label name"]') ||
-                                    document.querySelector('input[placeholder*="label"]');
-              
-              debugLog('ラベル名入力フィールド:', labelNameInput);
-              
-              if (labelNameInput) {
-                labelNameInput.value = companyName;
+        debugLog('現在のページ:', window.location.href, '設定ページ:', isInSettingsPage);
+        
+        // ラベル作成用のボタンを探す
+        const createLabelButtonPromise = findCreateLabelButton();
+        
+        // Promiseの場合とそうでない場合に対応
+        const processButton = (createLabelButton) => {
+          if (createLabelButton) {
+            debugLog('ラベル作成ボタンを見つけました:', createLabelButton);
+            // ラベル作成ボタンをクリック
+            createLabelButton.click();
+            
+            // 少し待ってからラベル名を入力
+            setTimeout(function() {
+              try {
+                const labelNameInput = document.querySelector('input[placeholder="ラベル名を入力"]') || 
+                                      document.querySelector('input[placeholder="Enter new label name"]') ||
+                                      document.querySelector('input[placeholder*="label"]') ||
+                                      document.querySelector('input[name="name"]'); // 設定ページの場合
                 
-                // 入力イベントをトリガー
-                const inputEvent = new Event('input', { bubbles: true });
-                labelNameInput.dispatchEvent(inputEvent);
+                debugLog('ラベル名入力フィールド:', labelNameInput);
                 
-                // 作成ボタンをクリック
-                setTimeout(function() {
-                  const createButton = [...document.querySelectorAll('button')].find(button => 
-                    button.textContent.includes('作成') || button.textContent.includes('Create')
-                  );
+                if (labelNameInput) {
+                  labelNameInput.value = companyName;
                   
-                  debugLog('ラベル作成確定ボタン:', createButton);
+                  // 入力イベントをトリガー
+                  const inputEvent = new Event('input', { bubbles: true });
+                  labelNameInput.dispatchEvent(inputEvent);
+                  const changeEvent = new Event('change', { bubbles: true });
+                  labelNameInput.dispatchEvent(changeEvent);
                   
-                  if (createButton) {
-                    createButton.click();
-                    debugLog(`ラベル "${companyName}" を作成しました`);
-                    // コールバックを呼び出し
-                    if (callback) setTimeout(() => callback(true, `ラベル "${companyName}" を作成しました`), 1000);
-                  } else {
-                    debugLog('ラベル作成確定ボタンが見つかりません');
-                    if (callback) callback(false, 'ラベル作成確定ボタンが見つかりません');
-                  }
-                }, 500);
-              } else {
-                debugLog('ラベル名入力フィールドが見つかりません');
-                if (callback) callback(false, 'ラベル名入力フィールドが見つかりません');
+                  // 作成ボタンをクリック
+                  setTimeout(function() {
+                    // 設定ページ用と通常のGmail UI用のボタン検索
+                    const createButton = [...document.querySelectorAll('button, div[role="button"]')].find(button => 
+                      button.textContent.includes('作成') || 
+                      button.textContent.includes('Create') ||
+                      (isInSettingsPage && (button.textContent === '作成' || button.textContent === 'Create'))
+                    );
+                    
+                    debugLog('ラベル作成確定ボタン:', createButton);
+                    
+                    if (createButton) {
+                      createButton.click();
+                      debugLog(`ラベル "${companyName}" を作成しました`);
+                      // コールバックを呼び出し
+                      if (callback) setTimeout(() => callback(true, `ラベル "${companyName}" を作成しました`), 1000);
+                    } else {
+                      debugLog('ラベル作成確定ボタンが見つかりません');
+                      if (callback) callback(false, 'ラベル作成確定ボタンが見つかりません');
+                    }
+                  }, 1000);
+                } else {
+                  debugLog('ラベル名入力フィールドが見つかりません');
+                  if (callback) callback(false, 'ラベル名入力フィールドが見つかりません');
+                }
+              } catch (inputError) {
+                console.error('ラベル名入力エラー:', inputError);
+                if (callback) callback(false, 'ラベル名入力中にエラーが発生しました: ' + inputError.message);
               }
-            } catch (inputError) {
-              console.error('ラベル名入力エラー:', inputError);
-              if (callback) callback(false, 'ラベル名入力中にエラーが発生しました: ' + inputError.message);
+            }, 1500); // 少し長めの待機時間
+          } else {
+            debugLog('ラベル作成ボタンが見つかりませんでした');
+            
+            // 設定ページに移動して再試行
+            if (!isInSettingsPage) {
+              debugLog('設定ページに移動して再試行します');
+              window.location.href = 'https://mail.google.com/mail/u/0/#settings/labels';
+              
+              // 少し待ってから再実行
+              setTimeout(() => {
+                createGmailLabel(companyName, emailDomain, callback);
+              }, 2500);
+              return;
             }
-          }, 1000);
+            
+            if (callback) callback(false, 'Gmailのラベル作成ボタンが見つかりません。Gmail設定から「ラベル」タブを開いてください。');
+          }
+        };
+        
+        // ボタンがPromiseの場合は処理
+        if (createLabelButtonPromise instanceof Promise) {
+          createLabelButtonPromise.then(processButton);
         } else {
-          debugLog('ラベル作成ボタンが見つかりませんでした');
-          if (callback) callback(false, 'Gmailのラベル作成ボタンが見つかりません。Gmailの左サイドバーからラベルメニューを開いてください。');
+          processButton(createLabelButtonPromise);
         }
       } catch (error) {
         console.error('ラベル作成処理中のエラー:', error);
@@ -348,8 +384,41 @@
   function findCreateLabelButton() {
     debugLog('ラベル作成ボタンを探しています...');
     
-    // 方法1: 直接ボタンを探す
-    const directButton = [...document.querySelectorAll('button')].find(button => {
+    // 方法1: 設定またはラベル設定ページにある場合
+    // URLをチェックして設定ページかどうか確認
+    const isInSettingsPage = window.location.href.includes('/settings/') || 
+                            window.location.href.includes('#settings') ||
+                            window.location.href.includes('#label');
+    
+    if (isInSettingsPage) {
+      debugLog('設定ページまたはラベル設定ページを検出しました');
+      
+      // 新しいラベル作成ボタンをテキストで探す
+      const settingsButton = [...document.querySelectorAll('button, div[role="button"]')].find(button => {
+        const text = button.textContent.trim();
+        return text === '新しいラベルを作成' || 
+               text === 'Create new label' || 
+               text.includes('新しいラベル') ||
+               text.includes('new label');
+      });
+      
+      if (settingsButton) {
+        debugLog('設定ページでラベル作成ボタンを見つけました:', settingsButton);
+        return settingsButton;
+      }
+      
+      // フォームや入力を探す
+      const createLabelForm = document.querySelector('input[placeholder="ラベル名を入力"]') || 
+                             document.querySelector('input[placeholder="Enter new label name"]');
+      
+      if (createLabelForm) {
+        debugLog('既にラベル作成フォームが開かれています');
+        return null; // 既にフォームが開いているのでボタンは不要
+      }
+    }
+    
+    // 方法2: 直接ボタンを探す (任意のページ)
+    const directButton = [...document.querySelectorAll('button, div[role="button"]')].find(button => {
       const text = button.textContent.trim();
       return text.includes('新しいラベルを作成') || 
              text.includes('Create new label') || 
@@ -361,7 +430,7 @@
       return directButton;
     }
     
-    // 方法2: サイドバーのラベルセクションを探す
+    // 方法3: サイドバーのラベルセクションを探す
     const sidebarItems = [...document.querySelectorAll('div[role="navigation"] div[role="tree"] div[role="treeitem"]')];
     const labelItem = sidebarItems.find(item => 
       item.textContent.includes('ラベル') || item.textContent.includes('Labels')
@@ -375,7 +444,7 @@
       // 少し待ってからボタンを探す
       return new Promise(resolve => {
         setTimeout(() => {
-          const createLabelBtn = [...document.querySelectorAll('button')].find(button => {
+          const createLabelBtn = [...document.querySelectorAll('button, div[role="button"]')].find(button => {
             const text = button.textContent.trim();
             return text.includes('新しいラベルを作成') || 
                    text.includes('Create new label') || 
@@ -388,9 +457,26 @@
       });
     }
     
-    // どちらの方法でも見つからない場合
-    debugLog('ラベル作成ボタンが見つかりませんでした');
-    return null;
+    // 方法4: 設定ページに移動して試す
+    debugLog('他の方法でボタンが見つからないため、設定ページに移動します');
+    // ラベル設定ページに移動
+    window.location.href = 'https://mail.google.com/mail/u/0/#settings/labels';
+    
+    return new Promise(resolve => {
+      // ページが読み込まれるのを待つ
+      setTimeout(() => {
+        const settingsButton = [...document.querySelectorAll('button, div[role="button"]')].find(button => {
+          const text = button.textContent.trim();
+          return text === '新しいラベルを作成' || 
+                 text === 'Create new label' || 
+                 text.includes('新しいラベル') ||
+                 text.includes('new label');
+        });
+        
+        debugLog('設定ページ移動後のボタン検索結果:', settingsButton);
+        resolve(settingsButton);
+      }, 2000); // ページ読み込みのために少し長めに待つ
+    });
   }
   
   // フィルタ作成ボタンを探す関数
